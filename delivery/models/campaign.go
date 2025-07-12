@@ -1,17 +1,18 @@
 package models
 
 type Campaign struct {
-	ID       string `gorm:"primaryKey"`
-	Name     string
-	ImageURL string
-	CTA      string
-	Status   string // ACTIVE or INACTIVE
+	ID       int    `gorm:"primaryKey;autoIncrement"`
+	Code     string `gorm:"uniqueIndex" json:"code"`
+	Name     string `json:"name"`
+	ImageURL string `json:"image_url"`
+	CTA      string `json:"cta"`
+	Status   string `json:"status"`
 }
 
 type TargetingRule struct {
-	ID         uint   `gorm:"primaryKey"`
-	CampaignID string `gorm:"index"`
-	Dimension  string // country, os, app
-	Type       string // include or exclude
+	ID         int    `gorm:"primaryKey;autoIncrement"`
+	CampaignID int
+	Dimension  string
+	Type       string
 	Value      string
 }

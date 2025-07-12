@@ -1,85 +1,30 @@
-// package db
-
-// import (
-// 	"context"
-// 	// "fmt"
-// 	"log"
-// 	// "time"
-
-// 	"gorm.io/driver/postgres"
-// 	"gorm.io/gorm"
-
-// 	"github.com/go-redis/redis/v8"
-// 	"github.com/KrishKJ/targeting-engine/models"
-// )
-
-// var (
-// 	DB     *gorm.DB
-// 	Redis  *redis.Client
-// 	Ctx    = context.Background()
-// )
-
-// func ConnectPostgres() {
-// 	// dsn := "host=localhost user=admin password=password dbname=targetingdb port=5432 sslmode=disable"
-// 	dsn := "host=localhost user=postgres password=postgres dbname=targetingdb port=5432 sslmode=disable"
-
-// 	var err error
-// 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-// 	if err != nil {
-// 		log.Fatal("❌ Failed to connect to Postgres:", err)
-// 	}
-// 	log.Println("✅ Connected to Postgres")
-// }
-
-// func ConnectRedis() {
-// 	Redis = redis.NewClient(&redis.Options{
-// 		Addr:     "localhost:6379",
-// 		Password: "", // no password
-// 		DB:       0,  // default DB
-// 	})
-
-// 	_, err := Redis.Ping(Ctx).Result()
-// 	if err != nil {
-// 		log.Fatal("❌ Failed to connect to Redis:", err)
-// 	}
-// 	log.Println("✅ Connected to Redis")
-// }
-
-// func AutoMigrate() {
-// 	err := DB.AutoMigrate(&models.Campaign{}, &models.TargetingRule{})
-// 	if err != nil {
-// 		log.Fatal("❌ Migration failed:", err)
-// 	}
-// 	log.Println("✅ DB Auto-migrated")
-// }
-
 package db
 
 import (
 	"context"
-	// "fmt"
 	"log"
-	// "time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"github.com/KrishKJ/targeting-engine/delivery/models"
 	"github.com/go-redis/redis/v8"
+	"encoding/json"
 )
 
+// Global variables for DB and Redis connections
 var (
 	DB    *gorm.DB
 	Redis *redis.Client
 	Ctx   = context.Background()
 )
 
+// ConnectPostgres initializes the Postgres database connection
+// Make sure Postgres server is running and the database exists
 func ConnectPostgres() {
-	// dsn := "host=localhost user=postgres password=postgres dbname=targetingdb port=5432 sslmode=disable"
 	dsn := "host=localhost user=postgres password=krishna dbname=postgres port=5432 sslmode=disable"
 
 	var err error
-	// DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
@@ -88,6 +33,8 @@ func ConnectPostgres() {
 	log.Println("✅ Connected to Postgres")
 }
 
+// ConnectRedis initializes the Redis client
+// Make sure Redis server is running on localhost:6379
 func ConnectRedis() {
 	Redis = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -101,6 +48,7 @@ func ConnectRedis() {
 	log.Println("✅ Connected to Redis")
 }
 
+// AutoMigrate runs migrations for the Campaign and TargetingRule models
 func AutoMigrate() {
 	err := DB.AutoMigrate(&models.Campaign{}, &models.TargetingRule{})
 	if err != nil {
@@ -108,3 +56,50 @@ func AutoMigrate() {
 	}
 	log.Println("✅ DB Auto-migrated")
 }
+
+// LoadCampaignsToCache loads active campaigns and their targeting rules into Redis cache
+// This should be called after connecting to Redis and Postgres
+func LoadCampaignsToCache() {
+	var campaigns []models.Campaign
+	var rules []models.TargetingRule
+	var cacheData []models.CachedCampaign
+
+	DB.Where("status = ?", "ACTIVE").Find(&campaigns)
+	DB.Find(&rules)
+
+	for _, camp := range campaigns {
+		cc := models.CachedCampaign{
+			CID:     camp.Code,
+			Img:     camp.ImageURL,
+			CTA:     camp.CTA,
+			Include: map[string][]string{},
+			Exclude: map[string][]string{},
+		}
+
+		for _, rule := range rules {
+			if rule.CampaignID == camp.ID {
+				if rule.Type == "include" {
+					cc.Include[rule.Dimension] = append(cc.Include[rule.Dimension], rule.Value)
+				} else {
+					cc.Exclude[rule.Dimension] = append(cc.Exclude[rule.Dimension], rule.Value)
+				}
+			}
+		}
+
+		cacheData = append(cacheData, cc)
+	}
+
+	data, err := json.Marshal(cacheData)
+	if err != nil {
+		log.Println("❌ Failed to marshal cache:", err)
+		return
+	}
+
+	err = Redis.Set(Ctx, "campaigns:active", data, 0).Err()
+	if err != nil {
+		log.Println("❌ Failed to set Redis cache:", err)
+	} else {
+		log.Println("✅ Redis cache set with active campaigns")
+	}
+}
+

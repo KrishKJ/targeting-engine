@@ -6,6 +6,8 @@ import (
 	"github.com/KrishKJ/targeting-engine/delivery/models"
 )
 
+// ValidateDeliveryRequest checks if the delivery request parameters are valid
+// It returns a DeliveryRequest struct or an error if validation fails
 func ValidateDeliveryRequest(c *gin.Context) (models.DeliveryRequest, error) {
 	app := c.Query("app")
 	country := c.Query("country")

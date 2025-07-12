@@ -20,3 +20,19 @@ docker compose up -d :  Start Containers from Compose File after installing dock
 
 docker compose down -v : To nuke down the containers completely
 
+
+
+
+
+
+REDIS CACHE INTEGRATION
+
+1. Define a struct that represents cached campaign with rules
+
+2. Load all ACTIVE campaigns and rules from PostgreSQL at app boot
+
+3. Marshal that data to JSON and store it in Redis
+
+4. Update ProcessDelivery() to use Redis (not DB)
+
+5. Add a utility to refresh cache anytime (bonus: for future updates)

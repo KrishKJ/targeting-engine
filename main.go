@@ -2,13 +2,14 @@ package main
 
 import (
 	"log"
-	// "net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/KrishKJ/targeting-engine/db"
 	"github.com/KrishKJ/targeting-engine/delivery"
 )
 
+// main function initializes the application
+// It connects to the database, sets up the router, and starts the server
 func main() {
 	// Connect to Postgres and Redis
 	db.ConnectPostgres()

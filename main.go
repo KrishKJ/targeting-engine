@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"github.com/gin-gonic/gin"
 	"github.com/KrishKJ/targeting-engine/db"
 	"github.com/KrishKJ/targeting-engine/delivery"
+	"github.com/gin-gonic/gin"
 )
 
 // main function initializes the application
@@ -17,6 +17,8 @@ func main() {
 
 	// Auto-migrate DB schema
 	db.AutoMigrate()
+	// Load campaigns and rules into Redis cache
+	db.LoadCampaignsToCache()
 
 	// Create Gin router
 	router := gin.Default()

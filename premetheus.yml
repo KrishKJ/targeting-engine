@@ -1,3 +1,5 @@
+# prometheus.yml
+# Prometheus configuration file for scraping metrics from the Targeting Engine application
 global:
   scrape_interval: 5s
 

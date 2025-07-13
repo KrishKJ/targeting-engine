@@ -1,66 +1,63 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
-	"time"
+	"runtime/debug"
 
 	"github.com/KrishKJ/targeting-engine/db"
-	"github.com/KrishKJ/targeting-engine/config"
 	"github.com/KrishKJ/targeting-engine/delivery"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// main function initializes the application
-// It connects to the database, sets up the router, and starts the server
+func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	debug.SetGCPercent(20) // Optional performance tuning
+	fmt.Printf("🧠 GOMAXPROCS set to %d\n", runtime.GOMAXPROCS(0))
+}
+
 func main() {
 
-	// Load environment variables
-	config.LoadEnv()
-
-	// Set GOMAXPROCS to number of logical CPUs
-	numCPU := runtime.NumCPU()
-	runtime.GOMAXPROCS(numCPU)
-	log.Printf("🧠 GOMAXPROCS set to %d", numCPU)
-
-	// Start pprof on port 6060 in background
+	// Start pprof server for profiling
 	go func() {
-		log.Println("📊 pprof running at http://localhost:6060/debug/pprof/")
-		log.Println("📈 Try: go tool pprof http://localhost:6060/debug/pprof/profile")
-		http.ListenAndServe("localhost:6060", nil)
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("🔥 panic in pprof server:", r)
+			}
+		}()
+		fmt.Println("📊 pprof running at http://localhost:6060/debug/pprof/")
+		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
 
-	// Connect to Postgres and Redis
+	// Connect to DB and Redis
 	db.ConnectPostgres()
 	db.ConnectRedis()
-
-	// Auto-migrate DB schema
 	db.AutoMigrate()
+	db.LoadCampaignsToCache()
 
-	// Load campaigns and rules into Redis cache
-	go func() {
-		ticker := time.NewTicker(10 * time.Minute) // Adjust time as needed, currently Redis will refresh every 10 minutes to keep the App updated
-		for range ticker.C {
-			log.Println("♻️ Refreshing Redis campaign cache...")
-			db.LoadCampaignsToCache()
-		}
-	}()
+	// Setup Gin
+	r := gin.Default()
 
-	// Create Gin router
-	router := gin.Default()
+	// 🔥 Expose Prometheus metrics
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Group APIs under /api
-	api := router.Group("/api")
-	delivery.LoadServices(api)
-
-	// Start the server
-	log.Println("🚀 Server started at http://localhost:8080")
-	if err := router.Run(":8080"); err != nil {
-		log.Fatal(err)
+	// Your APIs
+	api := r.Group("/api/v1")
+	{
+		api.GET("/delivery", delivery.HandleDelivery)
+		api.GET("/refresh-cache", delivery.RefreshCache)
 	}
-	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	log.Println("📊 Prometheus metrics available at /metrics")
+
+	// ✅ Optional health check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// Run server
+	fmt.Println("🚀 Server started at http://localhost:8080")
+	r.Run(":8080")
 }

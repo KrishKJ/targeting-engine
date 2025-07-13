@@ -1,5 +1,6 @@
 package models
 
+// CampaignResponse represents the response structure for a campaign
 type Campaign struct {
 	ID       int    `gorm:"primaryKey;autoIncrement"`
 	Code     string `gorm:"uniqueIndex" json:"code"`
@@ -9,6 +10,7 @@ type Campaign struct {
 	Status   string `json:"status"`
 }
 
+// CampaignResponse is the response structure for a campaign
 type TargetingRule struct {
 	ID         int    `gorm:"primaryKey;autoIncrement"`
 	CampaignID int

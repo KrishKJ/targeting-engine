@@ -1,3 +1,5 @@
+# Dockerfile for Targeting Engine Application
+# This Dockerfile sets up a Go application with Prometheus monitoring and pprof profiling.
 FROM golang:1.23-alpine
 
 WORKDIR /app

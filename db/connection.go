@@ -55,11 +55,6 @@ func ConnectPostgres() {
 // ConnectRedis initializes the Redis client
 // Make sure Redis server is running on localhost:6379
 func ConnectRedis() {
-	// Redis = redis.NewClient(&redis.Options{
-	// 	Addr:     "localhost:6379",
-	// 	Password: "",
-	// 	DB:       0,
-	// })
 	Redis = redis.NewClient(&redis.Options{
 		Addr:     config.GetEnv("REDIS_HOST", "localhost") + ":" + config.GetEnv("REDIS_PORT", "6379"),
 		Password: "", // No password for now

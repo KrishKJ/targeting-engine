@@ -1,9 +1,12 @@
+# Docker Compose configuration for Targeting Engine
+# This file defines the services required to run the Targeting Engine application
 services:
   app:
     build: .
     container_name: targeting-engine
     ports:
       - "8080:8080"
+      - "6060:6060" # Prometheus metrics endpoint
     env_file:
       - .env
     depends_on:

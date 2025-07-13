@@ -104,48 +104,6 @@ func getDimValue(dim string, req models.DeliveryRequest) string {
 	}
 }
 
-// isTargetMatch checks if the campaign matches the targeting rules based on the delivery request
-// It returns true if the campaign matches the request parameters
-func isTargetMatch(campaignID int, req models.DeliveryRequest) bool {
-	var rules []models.TargetingRule
-	db.DB.Where("campaign_id = ?", campaignID).Find(&rules)
-
-	include := map[string][]string{}
-	exclude := map[string][]string{}
-
-	for _, r := range rules {
-		if r.Type == "include" {
-			include[r.Dimension] = append(include[r.Dimension], r.Value)
-		} else if r.Type == "exclude" {
-			exclude[r.Dimension] = append(exclude[r.Dimension], r.Value)
-		}
-	}
-
-	// Inclusion logic
-	if vals, ok := include["country"]; ok && !contains(vals, req.Country) {
-		return false
-	}
-	if vals, ok := include["os"]; ok && !contains(vals, req.OS) {
-		return false
-	}
-	if vals, ok := include["app"]; ok && !contains(vals, req.App) {
-		return false
-	}
-
-	// Exclusion logic
-	if vals, ok := exclude["country"]; ok && contains(vals, req.Country) {
-		return false
-	}
-	if vals, ok := exclude["os"]; ok && contains(vals, req.OS) {
-		return false
-	}
-	if vals, ok := exclude["app"]; ok && contains(vals, req.App) {
-		return false
-	}
-
-	return true
-}
-
 // contains checks if a slice contains a specific value
 // It is used to verify if the request parameters match the targeting rules
 func contains(slice []string, val string) bool {

@@ -2,14 +2,18 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"encoding/json"
+
+	"github.com/KrishKJ/targeting-engine/config"
 	"github.com/KrishKJ/targeting-engine/delivery/models"
 	"github.com/go-redis/redis/v8"
-	"encoding/json"
 )
 
 // Global variables for DB and Redis connections
@@ -22,23 +26,43 @@ var (
 // ConnectPostgres initializes the Postgres database connection
 // Make sure Postgres server is running and the database exists
 func ConnectPostgres() {
-	dsn := "host=localhost user=postgres password=krishna dbname=postgres port=5432 sslmode=disable"
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		config.GetEnv("DB_HOST", "localhost"),
+		config.GetEnv("DB_USER", "postgres"),
+		config.GetEnv("DB_PASSWORD", "krishna"),
+		config.GetEnv("DB_NAME", "postgres"),
+		config.GetEnv("DB_PORT", "5432"),
+	)
 
 	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	maxAttempts := 10
 
-	if err != nil {
-		log.Fatal("❌ Failed to connect to Postgres:", err)
+	for attempts := 1; attempts <= maxAttempts; attempts++ {
+		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			log.Println("✅ Connected to Postgres")
+			return
+		}
+		log.Printf("❌ Attempt %d: Failed to connect to Postgres: %v", attempts, err)
+		time.Sleep(3 * time.Second)
 	}
-	log.Println("✅ Connected to Postgres")
+
+	log.Fatal("❌ Could not connect to Postgres after retries:", err)
 }
+
 
 // ConnectRedis initializes the Redis client
 // Make sure Redis server is running on localhost:6379
 func ConnectRedis() {
+	// Redis = redis.NewClient(&redis.Options{
+	// 	Addr:     "localhost:6379",
+	// 	Password: "",
+	// 	DB:       0,
+	// })
 	Redis = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
+		Addr:     config.GetEnv("REDIS_HOST", "localhost") + ":" + config.GetEnv("REDIS_PORT", "6379"),
+		Password: "", // No password for now
 		DB:       0,
 	})
 	_, err := Redis.Ping(Ctx).Result()
@@ -102,4 +126,3 @@ func LoadCampaignsToCache() {
 		log.Println("✅ Redis cache set with active campaigns")
 	}
 }
-

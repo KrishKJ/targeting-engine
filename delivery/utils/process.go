@@ -2,6 +2,8 @@ package utils
 
 import (
 	"encoding/json"
+	"runtime"
+	"sync"
 
 	"github.com/KrishKJ/targeting-engine/db"
 	"github.com/KrishKJ/targeting-engine/delivery/models"
@@ -10,27 +12,57 @@ import (
 // ProcessDelivery processes the delivery request and returns matching campaigns
 // It fetches active campaigns from the database and checks if they match the targeting rules
 func ProcessDelivery(req models.DeliveryRequest) ([]models.CampaignResponse, error) {
-	var cached []models.CachedCampaign
-
 	val, err := db.Redis.Get(db.Ctx, "campaigns:active").Result()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := json.Unmarshal([]byte(val), &cached); err != nil {
+	var campaigns []models.CachedCampaign
+	if err := json.Unmarshal([]byte(val), &campaigns); err != nil {
 		return nil, err
 	}
 
-	var result []models.CampaignResponse
+	// Create input & output channels
+	numWorkers := runtime.NumCPU() * 2 // tweak for benchmarking
+	in := make(chan models.CachedCampaign)
+	out := make(chan models.CampaignResponse)
 
-	for _, c := range cached {
-		if matchesFromCache(c, req) {
-			result = append(result, models.CampaignResponse{
-				CID: c.CID,
-				Img: c.Img,
-				CTA: c.CTA,
-			})
+	var wg sync.WaitGroup
+
+	// Start workers
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for campaign := range in {
+				if matchesFromCache(campaign, req) {
+					out <- models.CampaignResponse{
+						CID: campaign.CID,
+						Img: campaign.Img,
+						CTA: campaign.CTA,
+					}
+				}
+			}
+		}()
+	}
+
+	// Fan-out: send work
+	go func() {
+		for _, c := range campaigns {
+			in <- c
 		}
+		close(in)
+	}()
+
+	// Fan-in: collect results
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	var result []models.CampaignResponse
+	for match := range out {
+		result = append(result, match)
 	}
 
 	return result, nil

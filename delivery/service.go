@@ -1,9 +1,10 @@
 package delivery
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/KrishKJ/targeting-engine/db"
 	"github.com/KrishKJ/targeting-engine/delivery/models"
 	"github.com/KrishKJ/targeting-engine/delivery/utils"
+	"github.com/gin-gonic/gin"
 )
 
 // LoadServices attaches delivery-related routes to the router group
@@ -11,6 +12,7 @@ func LoadServices(r *gin.RouterGroup) {
 	v1 := r.Group("/v1")
 	{
 		v1.GET("/delivery", HandleDelivery)
+		v1.GET("/refresh-cache", RefreshCache)
 	}
 }
 
@@ -39,5 +41,11 @@ func HandleDelivery(c *gin.Context) {
 	}
 
 	c.JSON(200, data)
+}
+
+// RefreshCache triggers a refresh of the Redis cache for campaigns
+func RefreshCache(c *gin.Context) {
+	db.LoadCampaignsToCache()
+	c.JSON(200, gin.H{"status": "Cache refreshed successfully"})
 }
 

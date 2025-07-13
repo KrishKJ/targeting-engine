@@ -24,8 +24,8 @@ func ProcessDelivery(req models.DeliveryRequest) ([]models.CampaignResponse, err
 
 	// Create input & output channels
 	numWorkers := runtime.NumCPU() * 2 // tweak for benchmarking
-	in := make(chan models.CachedCampaign)
-	out := make(chan models.CampaignResponse)
+	in := make(chan models.CachedCampaign, len(campaigns))
+	out := make(chan models.CampaignResponse, len(campaigns))
 
 	var wg sync.WaitGroup
 

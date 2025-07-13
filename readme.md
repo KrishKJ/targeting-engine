@@ -49,13 +49,21 @@ Command to get matched campaigns: curl "http://localhost:8080/api/v1/delivery?ap
 - `GET /metrics` → Prometheus metrics
 - `GET /health` → Basic health check
 
-# Or in terminal, run
+# Sample URL
 curl http://localhost:8080/api/v1/delivery?app=com.gametion.ludokinggame&country=us&os=android
 
-# To check metrics on Prometheus, visit
-http://localhost:8080/metrics
+# To check metrics
+Prometheus: http://localhost:9090
 
-Docker Commands:
+Grafana: http://localhost:3000
+
+Default login: admin / admin
+
+Add Prometheus as a data source (URL: http://prometheus:9090)
+
+Import dashboard ID: 1860 for Go metrics
+
+# Docker Commands:
 docker-compose down
 docker-compose up --build
 

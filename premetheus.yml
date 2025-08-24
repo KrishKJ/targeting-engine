@@ -1,0 +1,9 @@
+# prometheus.yml
+# Prometheus configuration file for scraping metrics from the Targeting Engine application
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'targeting-engine'
+    static_configs:
+      - targets: ['app:8080']
